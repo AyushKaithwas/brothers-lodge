@@ -214,6 +214,17 @@ export default function TenantsPage() {
       return;
     }
 
+    // Check if the room already has tenants and prompt for confirmation
+    if (tenants.length > 0) {
+      const confirmReplace = window.confirm(
+        `This room (${selectedRoom.name}) already has ${tenants.length} tenant(s). Adding new tenants will remove all existing tenants. Do you want to continue?`
+      );
+
+      if (!confirmReplace) {
+        return; // User cancelled the operation
+      }
+    }
+
     // Validate rent amount
     if (!rentAmount || isNaN(Number(rentAmount)) || Number(rentAmount) < 0) {
       setError("Please enter a valid rent amount");
@@ -293,6 +304,22 @@ export default function TenantsPage() {
         throw new Error(errorData.error || "Failed to update room");
       }
 
+      // Delete previous tenants for this room before adding new ones
+      const deleteResponse = await fetch(
+        `/api/rooms/${selectedRoom.id}/tenants`,
+        {
+          method: "DELETE",
+        }
+      );
+
+      if (!deleteResponse.ok) {
+        const errorData = await deleteResponse.json();
+        throw new Error(errorData.error || "Failed to remove previous tenants");
+      }
+
+      const deleteData = await deleteResponse.json();
+      console.log(deleteData.message); // Log the number of deleted tenants
+
       // Submit each tenant with unformatted Aadhar number
       const promises = tenantForms.map((tenant) => {
         // Create a copy of the tenant data with unformatted Aadhar number
@@ -317,7 +344,13 @@ export default function TenantsPage() {
       const allSuccessful = responses.every((response) => response.ok);
 
       if (allSuccessful) {
-        setSuccess("Tenants added successfully!");
+        const deletedCount = deleteData.count || 0;
+        const successMessage =
+          deletedCount > 0
+            ? `Tenants added successfully! ${deletedCount} previous tenant(s) were removed.`
+            : "Tenants added successfully!";
+
+        setSuccess(successMessage);
         // Refresh tenants list
         if (selectedRoom) {
           const response = await fetch(`/api/rooms/${selectedRoom.id}/tenants`);
