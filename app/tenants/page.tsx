@@ -168,7 +168,29 @@ export default function TenantsPage() {
   // Update a tenant form field
   const updateTenantForm = (index: number, field: string, value: string) => {
     const updatedForms = [...tenantForms];
-    updatedForms[index] = { ...updatedForms[index], [field]: value };
+
+    if (field === "aadharNumber") {
+      // Format Aadhar number with spaces
+      updatedForms[index] = {
+        ...updatedForms[index],
+        [field]: formatAadharNumber(value),
+      };
+    } else if (field === "phoneNumber" || field === "fatherPhoneNumber") {
+      // Only allow digits for phone numbers, max 10 digits
+      const cleanedValue = value.replace(/\D/g, "");
+      if (cleanedValue.length <= 10) {
+        updatedForms[index] = { ...updatedForms[index], [field]: cleanedValue };
+      }
+    } else if (field === "pincode") {
+      // Only allow digits for pincode, max 6 digits
+      const cleanedValue = value.replace(/\D/g, "");
+      if (cleanedValue.length <= 6) {
+        updatedForms[index] = { ...updatedForms[index], [field]: cleanedValue };
+      }
+    } else {
+      updatedForms[index] = { ...updatedForms[index], [field]: value };
+    }
+
     setTenantForms(updatedForms);
   };
 
@@ -204,11 +226,40 @@ export default function TenantsPage() {
       if (
         !tenant.name ||
         !tenant.fatherName ||
+        !tenant.villageName ||
+        !tenant.tehsil ||
+        !tenant.policeStation ||
+        !tenant.district ||
+        !tenant.pincode ||
+        !tenant.state ||
         !tenant.aadharNumber ||
         !tenant.phoneNumber ||
         !tenant.fatherPhoneNumber
       ) {
         setError(`Please fill all required fields for Tenant ${i + 1}`);
+        return;
+      }
+
+      // Validate phone numbers (10 digits)
+      if (!isValidPhoneNumber(tenant.phoneNumber)) {
+        setError(`Phone number for Tenant ${i + 1} must be 10 digits`);
+        return;
+      }
+
+      if (!isValidPhoneNumber(tenant.fatherPhoneNumber)) {
+        setError(`Father's phone number for Tenant ${i + 1} must be 10 digits`);
+        return;
+      }
+
+      // Validate Aadhar number (12 digits)
+      if (!isValidAadharNumber(tenant.aadharNumber)) {
+        setError(`Aadhar number for Tenant ${i + 1} must be 12 digits`);
+        return;
+      }
+
+      // Validate pincode (6 digits)
+      if (!isValidPincode(tenant.pincode)) {
+        setError(`Pincode for Tenant ${i + 1} must be 6 digits`);
         return;
       }
     }
@@ -242,19 +293,23 @@ export default function TenantsPage() {
         throw new Error(errorData.error || "Failed to update room");
       }
 
-      // Submit each tenant
-      const promises = tenantForms.map((tenant) =>
-        fetch("/api/tenants", {
+      // Submit each tenant with unformatted Aadhar number
+      const promises = tenantForms.map((tenant) => {
+        // Create a copy of the tenant data with unformatted Aadhar number
+        const tenantData = {
+          ...tenant,
+          aadharNumber: unformatAadharNumber(tenant.aadharNumber),
+          roomId: selectedRoom.id,
+        };
+
+        return fetch("/api/tenants", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            ...tenant,
-            roomId: selectedRoom.id,
-          }),
-        })
-      );
+          body: JSON.stringify(tenantData),
+        });
+      });
 
       const responses = await Promise.all(promises);
 
@@ -297,6 +352,45 @@ export default function TenantsPage() {
       setSubmitting(false);
     }
   };
+
+  // Add these functions to implement validation and formatting
+
+  // Format Aadhar number with spaces after every 4 digits
+  function formatAadharNumber(value: string): string {
+    // Remove all non-digits
+    const cleanedValue = value.replace(/\D/g, "");
+
+    // Add spaces after every 4 digits
+    const parts = [];
+    for (let i = 0; i < cleanedValue.length && i < 12; i += 4) {
+      parts.push(cleanedValue.substring(i, i + 4));
+    }
+
+    return parts.join(" ");
+  }
+
+  // Remove formatting (spaces) from Aadhar number
+  function unformatAadharNumber(value: string): string {
+    return value.replace(/\s/g, "");
+  }
+
+  // Check if the value is a valid phone number (10 digits)
+  function isValidPhoneNumber(value: string): boolean {
+    const cleanedValue = value.replace(/\D/g, "");
+    return cleanedValue.length === 10;
+  }
+
+  // Check if the value is a valid Aadhar number (12 digits)
+  function isValidAadharNumber(value: string): boolean {
+    const cleanedValue = value.replace(/\D/g, "");
+    return cleanedValue.length === 12;
+  }
+
+  // Check if the value is a valid pincode (6 digits)
+  function isValidPincode(value: string): boolean {
+    const cleanedValue = value.replace(/\D/g, "");
+    return cleanedValue.length === 6;
+  }
 
   return (
     <div className="container mx-auto p-4 max-w-7xl">

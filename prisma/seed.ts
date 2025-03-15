@@ -5,10 +5,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding the database...");
 
-  // Create rooms based on the image (G1+G2+G3, F1-F12, S1-S6)
+  // Create rooms based on the image (G1+G2+G3, F1-F12, S1-S12)
   const groundFloorRooms = ["G1 + G2 + G3"];
   const firstFloorRooms = Array.from({ length: 12 }, (_, i) => `F${i + 1}`);
-  const secondFloorRooms = Array.from({ length: 6 }, (_, i) => `S${i + 1}`);
+  const secondFloorRooms = Array.from({ length: 12 }, (_, i) => `S${i + 1}`);
 
   const allRooms = [
     ...groundFloorRooms,
