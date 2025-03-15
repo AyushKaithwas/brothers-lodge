@@ -732,12 +732,22 @@ export default function TenantTableView() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {rooms.map((room) => {
                   const tenantCount = room.tenants.length;
+                  // Determine background color based on room name
+                  const getBgColor = (roomName: string, isEven: boolean) => {
+                    if (roomName.startsWith("F")) {
+                      return isEven ? "bg-blue-50" : "bg-blue-100";
+                    } else if (roomName.startsWith("S")) {
+                      return isEven ? "bg-emerald-50" : "bg-emerald-100";
+                    }
+                    return isEven ? "bg-white" : "bg-gray-50";
+                  };
+
                   return room.tenants.length > 0 ? (
                     // Rooms with tenants
                     room.tenants.map((tenant, index) => (
                       <tr
                         key={tenant.id}
-                        className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                        className={getBgColor(room.name, index % 2 === 0)}
                       >
                         {index === 0 && (
                           <>
@@ -826,7 +836,7 @@ export default function TenantTableView() {
                     ))
                   ) : (
                     // Empty rooms
-                    <tr>
+                    <tr className={getBgColor(room.name, true)}>
                       <td className="px-4 py-3 font-medium text-red-700 whitespace-nowrap room-cell">
                         {room.name}
                       </td>
