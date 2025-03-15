@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { Fragment } from "react";
+import { ChevronDown, Check, Filter } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 // Define types based on your schema
 interface Room {
@@ -57,6 +59,22 @@ const ALL_COLUMNS = {
   periodTo: "Period To",
 };
 
+// Group columns by category for better organization
+const COLUMN_GROUPS = {
+  "Personal Info": ["name", "fatherName", "email"],
+  "Contact Info": ["phoneNumber", "fatherPhoneNumber"],
+  "Address Info": [
+    "villageName",
+    "tehsil",
+    "policeStation",
+    "district",
+    "state",
+    "pincode",
+  ],
+  "Identity Info": ["aadharNumber"],
+  "Room Info": ["rentAmount", "periodFrom", "periodTo"],
+};
+
 export default function TenantTableView() {
   const [rooms, setRooms] = useState<GroupedRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +102,9 @@ export default function TenantTableView() {
     periodFrom: false,
     periodTo: true,
   });
+
+  // Column selector dropdown state
+  const [isColumnSelectorOpen, setIsColumnSelectorOpen] = useState(false);
 
   // Toggle column visibility
   const toggleColumn = (column: keyof typeof visibleColumns) => {
@@ -357,23 +378,21 @@ export default function TenantTableView() {
   };
 
   // Check if column should be visible in current print mode
-  const shouldShowColumn = (column: string): boolean => {
-    if (simplifiedPrint) {
-      // Only show essential columns in simplified print mode
-      const essentialColumns = [
-        "name",
-        "phoneNumber",
-        "villageName",
-        "district",
-        "state",
-        "rentAmount",
-        "periodTo",
-      ];
-      return essentialColumns.includes(column);
-    }
-
-    return isColumnVisible(column);
-  };
+  // const shouldShowColumn = (column: string): boolean => {
+  //   if (simplifiedPrint) {
+  //     const essentialColumns = [
+  //       "name",
+  //       "phoneNumber",
+  //       "villageName",
+  //       "district",
+  //       "state",
+  //       "rentAmount",
+  //       "periodTo",
+  //     ];
+  //     return essentialColumns.includes(column);
+  //   }
+  //   return isColumnVisible(column);
+  // };
 
   // Check if column is visible
   const isColumnVisible = (columnName: string) => {
@@ -415,7 +434,7 @@ export default function TenantTableView() {
 
   return (
     <div
-      className={`container mx-auto p-4 ${
+      className={`container mx-auto p-6 ${
         simplifiedPrint ? "simplified-print" : ""
       }`}
     >
@@ -557,26 +576,28 @@ export default function TenantTableView() {
         }
       `}</style>
 
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Tenant Registry</h1>
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent">
+          Tenant Registry
+        </h1>
         <div className="flex gap-3">
           <button
             onClick={handlePrint}
-            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 no-print"
+            className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 transition-colors duration-200 no-print flex items-center gap-2 shadow-sm"
             title="Print with all columns"
           >
-            Print Full Table
+            <span>Print Full Table</span>
           </button>
           <button
             onClick={handleSimplifiedPrint}
-            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 no-print"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200 no-print flex items-center gap-2 shadow-sm"
             title="Print with fewer columns for better readability"
           >
-            Print Readable Version
+            <span>Print Readable Version</span>
           </button>
           <Link
             href="/tenants"
-            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 no-print"
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors duration-200 no-print flex items-center gap-2 shadow-sm"
           >
             Manage Tenants
           </Link>
@@ -585,96 +606,130 @@ export default function TenantTableView() {
 
       {/* Success message */}
       {actionSuccess && (
-        <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4 no-print">
-          {actionSuccess}
+        <div className="bg-emerald-50 text-emerald-700 p-4 rounded-lg mb-6 no-print border border-emerald-200 flex items-center gap-2">
+          <Check className="w-5 h-5" />
+          <span>{actionSuccess}</span>
         </div>
       )}
 
       {/* Error message */}
       {actionError && (
-        <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4 no-print">
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg mb-6 no-print border border-red-200">
           {actionError}
         </div>
       )}
 
       {loading ? (
-        <div className="text-center py-8 no-print">
-          <p className="text-lg">Loading tenant data...</p>
+        <div className="text-center py-12 no-print">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-lg text-gray-600">Loading tenant data...</p>
         </div>
       ) : error ? (
-        <div className="bg-red-100 text-red-700 p-4 rounded-md no-print">
+        <div className="bg-red-50 text-red-700 p-4 rounded-lg no-print border border-red-200">
           {error}
         </div>
       ) : (
         <>
-          <div className="bg-white p-4 mb-6 rounded shadow no-print">
-            <h2 className="text-lg font-semibold mb-3">Column Visibility</h2>
-            <div className="flex flex-wrap gap-2">
-              {Object.keys(ALL_COLUMNS).map((column) => (
-                <div key={column} className="flex items-center">
-                  <label className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded cursor-pointer hover:bg-gray-200">
-                    <input
-                      type="checkbox"
-                      checked={isColumnVisible(column)}
-                      onChange={() =>
-                        toggleColumn(column as keyof typeof visibleColumns)
-                      }
-                      className="h-4 w-4"
-                    />
-                    {getColumnDisplayName(column)}
-                  </label>
-                </div>
-              ))}
+          {/* Column Visibility Selector */}
+          <div className="bg-white p-6 mb-8 rounded-lg shadow-sm border border-gray-200 no-print">
+            <div className="flex items-center gap-4 mb-4">
+              <h2 className="text-lg font-semibold text-gray-900">
+                Customize View
+              </h2>
+              <div className="relative">
+                <button
+                  onClick={() => setIsColumnSelectorOpen(!isColumnSelectorOpen)}
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                >
+                  <Filter className="w-4 h-4" />
+                  <span>Select Columns</span>
+                  <ChevronDown
+                    className={cn(
+                      "w-4 h-4 transition-transform",
+                      isColumnSelectorOpen && "transform rotate-180"
+                    )}
+                  />
+                </button>
+
+                {isColumnSelectorOpen && (
+                  <div className="absolute z-10 mt-2 w-72 bg-white rounded-lg shadow-lg border border-gray-200 py-2">
+                    {Object.entries(COLUMN_GROUPS).map(([group, columns]) => (
+                      <div key={group} className="px-3 py-2">
+                        <div className="text-sm font-medium text-gray-900 mb-2">
+                          {group}
+                        </div>
+                        <div className="space-y-1">
+                          {columns.map((column) => (
+                            <label
+                              key={column}
+                              className="flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-50 cursor-pointer text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={isColumnVisible(column)}
+                                onChange={() =>
+                                  toggleColumn(
+                                    column as keyof typeof visibleColumns
+                                  )
+                                }
+                                className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                              />
+                              <span className="text-gray-700">
+                                {
+                                  ALL_COLUMNS[
+                                    column as keyof typeof ALL_COLUMNS
+                                  ]
+                                }
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="min-w-full bg-white border border-gray-300">
+          {/* Table */}
+          <div className="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
+            <table className="min-w-full divide-y divide-gray-200">
               <thead>
-                <tr className="bg-gray-100 text-gray-700">
-                  <th className="border border-gray-300 p-2 text-left">
+                <tr className="bg-gray-50">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                  >
                     Room No.
                   </th>
-                  <th className="border border-gray-300 p-2 text-center">
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                  >
                     No. of Person
                   </th>
-                  {/* Visible columns for screen */}
+                  {/* Visible columns */}
                   {getVisibleColumnNames().map((column) => (
                     <th
                       key={column}
                       data-column={column}
-                      className="border border-gray-300 p-2 text-left"
+                      scope="col"
+                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
                     >
                       {getColumnDisplayName(column)}
                     </th>
                   ))}
-                  {/* Actions column (not for print) */}
-                  <th className="border border-gray-300 p-2 text-center no-print">
+                  {/* Actions column */}
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap no-print"
+                  >
                     Actions
                   </th>
-                  {/* Hidden columns that only show when printing */}
-                  {Object.keys(ALL_COLUMNS).map((column) => {
-                    // Skip if already visible or shouldn't be shown in current print mode
-                    if (
-                      visibleColumns[column as keyof typeof visibleColumns] ||
-                      !shouldShowColumn(column)
-                    ) {
-                      return null;
-                    }
-
-                    return (
-                      <th
-                        key={`print-${column}`}
-                        data-column={column}
-                        className="hidden print-only border border-gray-300 p-2 text-left"
-                      >
-                        {getColumnDisplayName(column)}
-                      </th>
-                    );
-                  })}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="bg-white divide-y divide-gray-200">
                 {rooms.map((room) => {
                   const tenantCount = room.tenants.length;
                   return room.tenants.length > 0 ? (
@@ -687,28 +742,27 @@ export default function TenantTableView() {
                         {index === 0 && (
                           <>
                             <td
-                              className="border border-gray-300 p-2 font-semibold text-red-700 room-cell"
+                              className="px-4 py-3 font-medium text-red-700 whitespace-nowrap room-cell"
                               rowSpan={tenantCount}
                             >
                               {room.name}
                             </td>
                             <td
-                              className="border border-gray-300 p-2 text-center"
+                              className="px-4 py-3 text-center text-gray-900 whitespace-nowrap"
                               rowSpan={tenantCount}
                             >
                               {tenantCount}
                             </td>
                           </>
                         )}
-                        {/* Visible columns for screen */}
+                        {/* Visible columns */}
                         {getVisibleColumnNames().map((column) => {
-                          // Handle room-specific columns
                           if (column === "rentAmount") {
                             return (
                               <td
                                 key={column}
                                 data-column={column}
-                                className="border border-gray-300 p-2 text-center"
+                                className="px-4 py-3 text-right whitespace-nowrap text-gray-900"
                               >
                                 {room.rentAmount ? `₹${room.rentAmount}` : "-"}
                               </td>
@@ -725,7 +779,7 @@ export default function TenantTableView() {
                               <td
                                 key={column}
                                 data-column={column}
-                                className="border border-gray-300 p-2 text-center"
+                                className="px-4 py-3 whitespace-nowrap text-gray-900"
                               >
                                 {!isDefaultDate(dateValue)
                                   ? formatDate(new Date(dateValue))
@@ -734,202 +788,61 @@ export default function TenantTableView() {
                             );
                           }
 
-                          // Handle tenant-specific columns
                           return (
                             <td
                               key={column}
                               data-column={column}
-                              className="border border-gray-300 p-2"
+                              className="px-4 py-3 text-gray-900"
                             >
                               {getTenantValue(tenant, column)}
                             </td>
                           );
                         })}
 
-                        {/* Add Actions column for editing */}
-                        <td className="border border-gray-300 p-2 text-center no-print">
-                          <button
-                            onClick={() => handleEditTenant(tenant)}
-                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
-                            title="Edit tenant information"
-                          >
-                            Edit
-                          </button>
-                          {index === 0 && (
+                        {/* Actions */}
+                        <td className="px-4 py-3 text-center whitespace-nowrap no-print">
+                          <div className="flex items-center justify-center gap-2">
                             <button
-                              onClick={() =>
-                                handleEmptyRoom(room.id, room.name)
-                              }
-                              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
-                              title="Remove all tenants from this room"
+                              onClick={() => handleEditTenant(tenant)}
+                              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                              title="Edit tenant information"
                             >
-                              Empty Room
+                              Edit
                             </button>
-                          )}
+                            {index === 0 && (
+                              <button
+                                onClick={() =>
+                                  handleEmptyRoom(room.id, room.name)
+                                }
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+                                title="Remove all tenants from this room"
+                              >
+                                Empty Room
+                              </button>
+                            )}
+                          </div>
                         </td>
-
-                        {/* Hidden columns that only show when printing */}
-                        {Object.keys(ALL_COLUMNS).map((column) => {
-                          // Skip if already visible or shouldn't be shown in current print mode
-                          if (
-                            visibleColumns[
-                              column as keyof typeof visibleColumns
-                            ] ||
-                            !shouldShowColumn(column)
-                          ) {
-                            return null;
-                          }
-
-                          // Handle room-specific columns
-                          if (column === "rentAmount") {
-                            return (
-                              <td
-                                key={`print-${column}`}
-                                data-column={column}
-                                className="hidden print-only border border-gray-300 p-2 text-center"
-                              >
-                                {room.rentAmount ? `₹${room.rentAmount}` : "-"}
-                              </td>
-                            );
-                          }
-
-                          if (
-                            column === "periodFrom" ||
-                            column === "periodTo"
-                          ) {
-                            const dateValue =
-                              room[column as "periodFrom" | "periodTo"];
-                            return (
-                              <td
-                                key={`print-${column}`}
-                                data-column={column}
-                                className="hidden print-only border border-gray-300 p-2 text-center"
-                              >
-                                {!isDefaultDate(dateValue)
-                                  ? formatDate(new Date(dateValue))
-                                  : "-"}
-                              </td>
-                            );
-                          }
-
-                          // Handle tenant-specific columns
-                          return (
-                            <td
-                              key={`print-${column}`}
-                              data-column={column}
-                              className="hidden print-only border border-gray-300 p-2"
-                            >
-                              {getTenantValue(tenant, column)}
-                            </td>
-                          );
-                        })}
                       </tr>
                     ))
                   ) : (
                     // Empty rooms
-                    <tr key={room.id}>
-                      <td className="border border-gray-300 p-2 font-semibold text-red-700 room-cell">
+                    <tr>
+                      <td className="px-4 py-3 font-medium text-red-700 whitespace-nowrap room-cell">
                         {room.name}
                       </td>
-                      <td className="border border-gray-300 p-2 text-center">
+                      <td className="px-4 py-3 text-center text-gray-900 whitespace-nowrap">
                         0
                       </td>
-                      {/* Visible columns for empty rooms */}
-                      {getVisibleColumnNames().map((column) => {
-                        if (column === "rentAmount") {
-                          return (
-                            <td
-                              key={column}
-                              data-column={column}
-                              className="border border-gray-300 p-2 text-center"
-                            >
-                              {room.rentAmount ? `₹${room.rentAmount}` : "-"}
-                            </td>
-                          );
-                        }
-
-                        if (column === "periodFrom" || column === "periodTo") {
-                          const dateValue =
-                            room[column as "periodFrom" | "periodTo"];
-                          return (
-                            <td
-                              key={column}
-                              data-column={column}
-                              className="border border-gray-300 p-2 text-center"
-                            >
-                              {!isDefaultDate(dateValue)
-                                ? formatDate(new Date(dateValue))
-                                : "-"}
-                            </td>
-                          );
-                        }
-
-                        return (
-                          <td
-                            key={column}
-                            data-column={column}
-                            className="border border-gray-300 p-2"
-                          >
-                            -
-                          </td>
-                        );
-                      })}
-
-                      {/* Empty action cell for empty rooms */}
-                      <td className="border border-gray-300 p-2 text-center no-print">
-                        {/* No edit button for empty room */}
-                      </td>
-
-                      {/* Hidden columns for printing (empty rooms) */}
-                      {Object.keys(ALL_COLUMNS).map((column) => {
-                        // Skip if already visible or shouldn't be shown in current print mode
-                        if (
-                          visibleColumns[
-                            column as keyof typeof visibleColumns
-                          ] ||
-                          !shouldShowColumn(column)
-                        ) {
-                          return null;
-                        }
-
-                        if (column === "rentAmount") {
-                          return (
-                            <td
-                              key={`print-${column}`}
-                              data-column={column}
-                              className="hidden print-only border border-gray-300 p-2 text-center"
-                            >
-                              {room.rentAmount ? `₹${room.rentAmount}` : "-"}
-                            </td>
-                          );
-                        }
-
-                        if (column === "periodFrom" || column === "periodTo") {
-                          const dateValue =
-                            room[column as "periodFrom" | "periodTo"];
-                          return (
-                            <td
-                              key={`print-${column}`}
-                              data-column={column}
-                              className="hidden print-only border border-gray-300 p-2 text-center"
-                            >
-                              {!isDefaultDate(dateValue)
-                                ? formatDate(new Date(dateValue))
-                                : "-"}
-                            </td>
-                          );
-                        }
-
-                        return (
-                          <td
-                            key={`print-${column}`}
-                            data-column={column}
-                            className="hidden print-only border border-gray-300 p-2"
-                          >
-                            -
-                          </td>
-                        );
-                      })}
+                      {getVisibleColumnNames().map((column) => (
+                        <td
+                          key={column}
+                          data-column={column}
+                          className="px-4 py-3 text-gray-500"
+                        >
+                          -
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-center whitespace-nowrap no-print"></td>
                     </tr>
                   );
                 })}
@@ -941,25 +854,41 @@ export default function TenantTableView() {
 
       {/* Edit Tenant Modal */}
       {isModalOpen && editingTenant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
-          <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Edit Tenant</h2>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Edit Tenant
+              </h2>
               <button
                 onClick={closeModal}
-                className="text-gray-500 hover:text-gray-700"
+                className="text-gray-500 hover:text-gray-700 focus:outline-none"
               >
-                ✕
+                <span className="sr-only">Close</span>
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
               </button>
             </div>
 
             {actionSuccess ? (
-              <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4">
-                {actionSuccess}
+              <div className="bg-emerald-50 text-emerald-700 p-4 rounded-lg mb-4 border border-emerald-200 flex items-center gap-2">
+                <Check className="w-5 h-5" />
+                <span>{actionSuccess}</span>
               </div>
             ) : (
               <form onSubmit={handleTenantUpdate}>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Tenant Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -968,7 +897,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="name"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.name}
                       required
                     />
@@ -982,7 +911,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="fatherName"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.fatherName}
                       required
                     />
@@ -996,7 +925,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="villageName"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.villageName}
                       required
                     />
@@ -1010,7 +939,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="tehsil"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.tehsil}
                       required
                     />
@@ -1024,7 +953,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="policeStation"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.policeStation}
                       required
                     />
@@ -1038,7 +967,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="district"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.district}
                       required
                     />
@@ -1052,7 +981,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="pincode"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.pincode}
                       required
                       maxLength={6}
@@ -1069,7 +998,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="state"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.state}
                       required
                     />
@@ -1083,7 +1012,7 @@ export default function TenantTableView() {
                     <input
                       type="email"
                       name="email"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.email || ""}
                     />
                   </div>
@@ -1096,7 +1025,7 @@ export default function TenantTableView() {
                     <input
                       type="text"
                       name="aadharNumber"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={formatAadharNumber(
                         editingTenant.aadharNumber
                       )}
@@ -1112,7 +1041,7 @@ export default function TenantTableView() {
                     <input
                       type="tel"
                       name="phoneNumber"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.phoneNumber}
                       required
                       maxLength={10}
@@ -1130,7 +1059,7 @@ export default function TenantTableView() {
                     <input
                       type="tel"
                       name="fatherPhoneNumber"
-                      className="w-full p-2 border rounded-md"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       defaultValue={editingTenant.fatherPhoneNumber}
                       required
                       maxLength={10}
@@ -1141,23 +1070,23 @@ export default function TenantTableView() {
                 </div>
 
                 {actionError && (
-                  <div className="bg-red-100 text-red-700 p-3 rounded-md my-4">
+                  <div className="bg-red-50 text-red-700 p-4 rounded-lg my-6 border border-red-200">
                     {actionError}
                   </div>
                 )}
 
-                <div className="flex justify-end mt-6 gap-2">
+                <div className="flex justify-end mt-8 gap-3">
                   <button
                     type="button"
                     onClick={closeModal}
-                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={processingAction}
-                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+                    className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50"
                   >
                     {processingAction ? "Saving..." : "Save Changes"}
                   </button>
