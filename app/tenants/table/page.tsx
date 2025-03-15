@@ -37,10 +37,30 @@ interface GroupedRoom extends Room {
   personCount: number;
 }
 
+// List of all available columns for reference
+const ALL_COLUMNS = {
+  name: "Name",
+  fatherName: "Father's Name",
+  phoneNumber: "Mobile No.",
+  fatherPhoneNumber: "Father's Mobile",
+  villageName: "Village",
+  tehsil: "Tehsil",
+  policeStation: "Police Station",
+  district: "District",
+  state: "State",
+  pincode: "Pincode",
+  aadharNumber: "Aadhar Number",
+  email: "Email",
+  rentAmount: "Rent Amount",
+  periodFrom: "Period From",
+  periodTo: "Period To",
+};
+
 export default function TenantTableView() {
   const [rooms, setRooms] = useState<GroupedRoom[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [simplifiedPrint, setSimplifiedPrint] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
     name: true,
     fatherName: true,
@@ -65,6 +85,23 @@ export default function TenantTableView() {
       ...prev,
       [column]: !prev[column],
     }));
+  };
+
+  // Print the table with current settings
+  const handlePrint = () => {
+    window.print();
+  };
+
+  // Print with simplified layout (fewer columns)
+  const handleSimplifiedPrint = () => {
+    setSimplifiedPrint(true);
+    setTimeout(() => {
+      window.print();
+      // Reset after printing
+      setTimeout(() => {
+        setSimplifiedPrint(false);
+      }, 500);
+    }, 200);
   };
 
   // Fetch all rooms with their tenants
@@ -132,9 +169,41 @@ export default function TenantTableView() {
 
   // Get list of visible columns
   const getVisibleColumnNames = () => {
+    if (simplifiedPrint) {
+      // Only show essential columns in simplified print mode
+      return [
+        "name",
+        "phoneNumber",
+        "villageName",
+        "district",
+        "state",
+        "rentAmount",
+        "periodTo",
+      ];
+    }
+
     return Object.entries(visibleColumns)
       .filter(([, isVisible]) => isVisible)
       .map(([name]) => name);
+  };
+
+  // Check if column should be visible in current print mode
+  const shouldShowColumn = (column: string): boolean => {
+    if (simplifiedPrint) {
+      // Only show essential columns in simplified print mode
+      const essentialColumns = [
+        "name",
+        "phoneNumber",
+        "villageName",
+        "district",
+        "state",
+        "rentAmount",
+        "periodTo",
+      ];
+      return essentialColumns.includes(column);
+    }
+
+    return isColumnVisible(column);
   };
 
   // Check if column is visible
@@ -159,24 +228,7 @@ export default function TenantTableView() {
 
   // Get user-friendly column name
   const getColumnDisplayName = (columnName: string) => {
-    const nameMap: Record<string, string> = {
-      name: "Name",
-      fatherName: "Father's Name",
-      phoneNumber: "Mobile No.",
-      fatherPhoneNumber: "Father's Mobile",
-      villageName: "Village",
-      tehsil: "Tehsil",
-      policeStation: "Police Station",
-      district: "District",
-      state: "State",
-      pincode: "Pincode",
-      aadharNumber: "Aadhar Number",
-      email: "Email",
-      rentAmount: "Rent Amount",
-      periodFrom: "Period From",
-      periodTo: "Period To",
-    };
-    return nameMap[columnName] || columnName;
+    return ALL_COLUMNS[columnName as keyof typeof ALL_COLUMNS] || columnName;
   };
 
   // Safely get tenant property as string
@@ -193,29 +245,189 @@ export default function TenantTableView() {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div
+      className={`container mx-auto p-4 ${
+        simplifiedPrint ? "simplified-print" : ""
+      }`}
+    >
+      {/* Print-specific styles */}
+      <style jsx global>{`
+        /* Print-specific styles */
+        @media print {
+          /* Layout adjustments */
+          body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+          }
+
+          /* Hide non-essential elements */
+          .no-print {
+            display: none !important;
+          }
+
+          /* Ensure landscape orientation */
+          @page {
+            size: landscape;
+            margin: 0.5cm;
+          }
+
+          /* Table styles for print */
+          table {
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            border-spacing: 0 !important;
+            page-break-inside: auto !important;
+            font-size: 7pt !important;
+          }
+
+          th,
+          td {
+            padding: 3px 4px !important;
+            font-size: 7pt !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+            white-space: normal !important;
+            page-break-inside: avoid !important;
+            border: 0.5px solid #ddd !important;
+            max-width: 1.5cm !important;
+            word-break: break-word !important;
+          }
+
+          /* Column width distribution */
+          th:nth-child(1),
+          td:nth-child(1) {
+            width: 8% !important;
+          } /* Room No */
+          th:nth-child(2),
+          td:nth-child(2) {
+            width: 5% !important;
+          } /* No. of Person */
+
+          /* Room-specific columns */
+          th[data-column="rentAmount"],
+          td[data-column="rentAmount"] {
+            width: 7% !important;
+            text-align: right !important;
+          }
+          th[data-column="periodFrom"],
+          td[data-column="periodFrom"],
+          th[data-column="periodTo"],
+          td[data-column="periodTo"] {
+            width: 7% !important;
+          }
+
+          /* Tenant columns */
+          th[data-column="name"],
+          td[data-column="name"],
+          th[data-column="fatherName"],
+          td[data-column="fatherName"] {
+            width: 10% !important;
+          }
+          th[data-column="phoneNumber"],
+          td[data-column="phoneNumber"],
+          th[data-column="fatherPhoneNumber"],
+          td[data-column="fatherPhoneNumber"],
+          th[data-column="aadharNumber"],
+          td[data-column="aadharNumber"],
+          th[data-column="pincode"],
+          td[data-column="pincode"] {
+            width: 7% !important;
+          }
+          th[data-column="villageName"],
+          td[data-column="villageName"],
+          th[data-column="tehsil"],
+          td[data-column="tehsil"],
+          th[data-column="policeStation"],
+          td[data-column="policeStation"],
+          th[data-column="district"],
+          td[data-column="district"],
+          th[data-column="state"],
+          td[data-column="state"] {
+            width: 7% !important;
+          }
+
+          /* Show all columns when printing, regardless of visibility settings */
+          .print-only {
+            display: table-cell !important;
+          }
+
+          /* Hide certain columns in simplified print mode */
+          .simplified-hide {
+            display: none !important;
+          }
+
+          /* Adjust widths for simplified print mode */
+          .simplified-print table {
+            font-size: 9pt !important;
+          }
+
+          .simplified-print th,
+          .simplified-print td {
+            font-size: 9pt !important;
+            padding: 5px !important;
+            max-width: none !important;
+          }
+
+          /* Make sure rows don't break across pages */
+          tr {
+            page-break-inside: avoid !important;
+          }
+
+          /* Ensure proper page breaks */
+          .page-break-before {
+            page-break-before: always !important;
+          }
+
+          /* Ensure room names are visible */
+          .room-cell {
+            font-weight: bold !important;
+            color: #b91c1c !important;
+          }
+        }
+      `}</style>
+
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Tenant Registry</h1>
-        <Link
-          href="/tenants"
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-        >
-          Manage Tenants
-        </Link>
+        <div className="flex gap-3">
+          <button
+            onClick={handlePrint}
+            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 no-print"
+            title="Print with all columns"
+          >
+            Print Full Table
+          </button>
+          <button
+            onClick={handleSimplifiedPrint}
+            className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 no-print"
+            title="Print with fewer columns for better readability"
+          >
+            Print Readable Version
+          </button>
+          <Link
+            href="/tenants"
+            className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 no-print"
+          >
+            Manage Tenants
+          </Link>
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-8">
+        <div className="text-center py-8 no-print">
           <p className="text-lg">Loading tenant data...</p>
         </div>
       ) : error ? (
-        <div className="bg-red-100 text-red-700 p-4 rounded-md">{error}</div>
+        <div className="bg-red-100 text-red-700 p-4 rounded-md no-print">
+          {error}
+        </div>
       ) : (
         <>
-          <div className="bg-white p-4 mb-6 rounded shadow">
+          <div className="bg-white p-4 mb-6 rounded shadow no-print">
             <h2 className="text-lg font-semibold mb-3">Column Visibility</h2>
             <div className="flex flex-wrap gap-2">
-              {Object.keys(visibleColumns).map((column) => (
+              {Object.keys(ALL_COLUMNS).map((column) => (
                 <div key={column} className="flex items-center">
                   <label className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 rounded cursor-pointer hover:bg-gray-200">
                     <input
@@ -243,14 +455,36 @@ export default function TenantTableView() {
                   <th className="border border-gray-300 p-2 text-center">
                     No. of Person
                   </th>
+                  {/* Visible columns for screen */}
                   {getVisibleColumnNames().map((column) => (
                     <th
                       key={column}
+                      data-column={column}
                       className="border border-gray-300 p-2 text-left"
                     >
                       {getColumnDisplayName(column)}
                     </th>
                   ))}
+                  {/* Hidden columns that only show when printing */}
+                  {Object.keys(ALL_COLUMNS).map((column) => {
+                    // Skip if already visible or shouldn't be shown in current print mode
+                    if (
+                      visibleColumns[column as keyof typeof visibleColumns] ||
+                      !shouldShowColumn(column)
+                    ) {
+                      return null;
+                    }
+
+                    return (
+                      <th
+                        key={`print-${column}`}
+                        data-column={column}
+                        className="hidden print-only border border-gray-300 p-2 text-left"
+                      >
+                        {getColumnDisplayName(column)}
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody>
@@ -266,7 +500,7 @@ export default function TenantTableView() {
                         {index === 0 && (
                           <>
                             <td
-                              className="border border-gray-300 p-2 font-semibold text-red-700"
+                              className="border border-gray-300 p-2 font-semibold text-red-700 room-cell"
                               rowSpan={tenantCount}
                             >
                               {room.name}
@@ -279,12 +513,14 @@ export default function TenantTableView() {
                             </td>
                           </>
                         )}
+                        {/* Visible columns for screen */}
                         {getVisibleColumnNames().map((column) => {
                           // Handle room-specific columns
                           if (column === "rentAmount") {
                             return (
                               <td
                                 key={column}
+                                data-column={column}
                                 className="border border-gray-300 p-2 text-center"
                               >
                                 {room.rentAmount ? `₹${room.rentAmount}` : "-"}
@@ -301,6 +537,7 @@ export default function TenantTableView() {
                             return (
                               <td
                                 key={column}
+                                data-column={column}
                                 className="border border-gray-300 p-2 text-center"
                               >
                                 {!isDefaultDate(dateValue)
@@ -314,7 +551,64 @@ export default function TenantTableView() {
                           return (
                             <td
                               key={column}
+                              data-column={column}
                               className="border border-gray-300 p-2"
+                            >
+                              {getTenantValue(tenant, column)}
+                            </td>
+                          );
+                        })}
+
+                        {/* Hidden columns that only show when printing */}
+                        {Object.keys(ALL_COLUMNS).map((column) => {
+                          // Skip if already visible or shouldn't be shown in current print mode
+                          if (
+                            visibleColumns[
+                              column as keyof typeof visibleColumns
+                            ] ||
+                            !shouldShowColumn(column)
+                          ) {
+                            return null;
+                          }
+
+                          // Handle room-specific columns
+                          if (column === "rentAmount") {
+                            return (
+                              <td
+                                key={`print-${column}`}
+                                data-column={column}
+                                className="hidden print-only border border-gray-300 p-2 text-center"
+                              >
+                                {room.rentAmount ? `₹${room.rentAmount}` : "-"}
+                              </td>
+                            );
+                          }
+
+                          if (
+                            column === "periodFrom" ||
+                            column === "periodTo"
+                          ) {
+                            const dateValue =
+                              room[column as "periodFrom" | "periodTo"];
+                            return (
+                              <td
+                                key={`print-${column}`}
+                                data-column={column}
+                                className="hidden print-only border border-gray-300 p-2 text-center"
+                              >
+                                {!isDefaultDate(dateValue)
+                                  ? formatDate(new Date(dateValue))
+                                  : "-"}
+                              </td>
+                            );
+                          }
+
+                          // Handle tenant-specific columns
+                          return (
+                            <td
+                              key={`print-${column}`}
+                              data-column={column}
+                              className="hidden print-only border border-gray-300 p-2"
                             >
                               {getTenantValue(tenant, column)}
                             </td>
@@ -325,17 +619,19 @@ export default function TenantTableView() {
                   ) : (
                     // Empty rooms
                     <tr key={room.id}>
-                      <td className="border border-gray-300 p-2 font-semibold text-red-700">
+                      <td className="border border-gray-300 p-2 font-semibold text-red-700 room-cell">
                         {room.name}
                       </td>
                       <td className="border border-gray-300 p-2 text-center">
                         0
                       </td>
+                      {/* Visible columns for empty rooms */}
                       {getVisibleColumnNames().map((column) => {
                         if (column === "rentAmount") {
                           return (
                             <td
                               key={column}
+                              data-column={column}
                               className="border border-gray-300 p-2 text-center"
                             >
                               {room.rentAmount ? `₹${room.rentAmount}` : "-"}
@@ -349,6 +645,7 @@ export default function TenantTableView() {
                           return (
                             <td
                               key={column}
+                              data-column={column}
                               className="border border-gray-300 p-2 text-center"
                             >
                               {!isDefaultDate(dateValue)
@@ -361,7 +658,59 @@ export default function TenantTableView() {
                         return (
                           <td
                             key={column}
+                            data-column={column}
                             className="border border-gray-300 p-2"
+                          >
+                            -
+                          </td>
+                        );
+                      })}
+
+                      {/* Hidden columns for printing (empty rooms) */}
+                      {Object.keys(ALL_COLUMNS).map((column) => {
+                        // Skip if already visible or shouldn't be shown in current print mode
+                        if (
+                          visibleColumns[
+                            column as keyof typeof visibleColumns
+                          ] ||
+                          !shouldShowColumn(column)
+                        ) {
+                          return null;
+                        }
+
+                        if (column === "rentAmount") {
+                          return (
+                            <td
+                              key={`print-${column}`}
+                              data-column={column}
+                              className="hidden print-only border border-gray-300 p-2 text-center"
+                            >
+                              {room.rentAmount ? `₹${room.rentAmount}` : "-"}
+                            </td>
+                          );
+                        }
+
+                        if (column === "periodFrom" || column === "periodTo") {
+                          const dateValue =
+                            room[column as "periodFrom" | "periodTo"];
+                          return (
+                            <td
+                              key={`print-${column}`}
+                              data-column={column}
+                              className="hidden print-only border border-gray-300 p-2 text-center"
+                            >
+                              {!isDefaultDate(dateValue)
+                                ? formatDate(new Date(dateValue))
+                                : "-"}
+                            </td>
+                          );
+                        }
+
+                        return (
+                          <td
+                            key={`print-${column}`}
+                            data-column={column}
+                            className="hidden print-only border border-gray-300 p-2"
                           >
                             -
                           </td>
