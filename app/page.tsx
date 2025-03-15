@@ -26,6 +26,19 @@ export default function HomePage() {
           </div>
         </Link>
 
+        <Link href="/tenants/table" className="block">
+          <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
+            <h2 className="text-2xl font-semibold mb-3">Tenant Registry</h2>
+            <p className="text-gray-600 mb-4">
+              View a tabular report of all tenants organized by rooms
+            </p>
+            <div className="flex justify-between items-center">
+              <span className="text-blue-600">View Registry</span>
+              <span className="text-blue-600">→</span>
+            </div>
+          </div>
+        </Link>
+
         <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
           <h2 className="text-2xl font-semibold mb-3">Room Overview</h2>
           <p className="text-gray-600 mb-4">
