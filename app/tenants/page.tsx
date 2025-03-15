@@ -9,6 +9,8 @@ interface Room {
   id: number;
   name: string;
   rentAmount: number;
+  periodFrom: string;
+  periodTo: string;
 }
 
 // Define an Option type for the Autocomplete component
@@ -31,8 +33,6 @@ interface Tenant {
   aadharNumber: string;
   phoneNumber: string;
   fatherPhoneNumber: string;
-  periodFrom: string;
-  periodTo: string;
   roomId: number;
   room: Room;
 }
@@ -95,6 +95,13 @@ export default function TenantsPage() {
   useEffect(() => {
     if (selectedRoom) {
       setRentAmount(selectedRoom.rentAmount?.toString() || "0");
+      // If room has a periodFrom, use it, otherwise keep current value
+      if (selectedRoom.periodFrom) {
+        const periodFromDate = new Date(selectedRoom.periodFrom);
+        if (!isNaN(periodFromDate.getTime())) {
+          setPeriodFrom(periodFromDate.toISOString().split("T")[0]);
+        }
+      }
     } else {
       setRentAmount("");
     }
@@ -211,7 +218,13 @@ export default function TenantsPage() {
     setSuccess(null);
 
     try {
-      // First, update the room's rent amount
+      // Ensure periodFrom is a valid date format (YYYY-MM-DD)
+      const periodFromValue = periodFrom.trim();
+      if (!periodFromValue || !/^\d{4}-\d{2}-\d{2}$/.test(periodFromValue)) {
+        throw new Error("Invalid date format. Please use YYYY-MM-DD format.");
+      }
+
+      // First, update the room's rent amount and period
       const roomResponse = await fetch(`/api/rooms/${selectedRoom.id}`, {
         method: "PATCH",
         headers: {
@@ -219,18 +232,14 @@ export default function TenantsPage() {
         },
         body: JSON.stringify({
           rentAmount: Number(rentAmount),
+          periodFrom: periodFromValue,
+          // periodTo is calculated on the server as periodFrom + 11 months
         }),
       });
 
       if (!roomResponse.ok) {
         const errorData = await roomResponse.json();
-        throw new Error(errorData.error || "Failed to update room rent");
-      }
-
-      // Ensure periodFrom is a valid date format (YYYY-MM-DD)
-      const periodFromValue = periodFrom.trim();
-      if (!periodFromValue || !/^\d{4}-\d{2}-\d{2}$/.test(periodFromValue)) {
-        throw new Error("Invalid date format. Please use YYYY-MM-DD format.");
+        throw new Error(errorData.error || "Failed to update room");
       }
 
       // Submit each tenant
@@ -243,7 +252,6 @@ export default function TenantsPage() {
           body: JSON.stringify({
             ...tenant,
             roomId: selectedRoom.id,
-            periodFrom: periodFromValue,
           }),
         })
       );
@@ -262,6 +270,12 @@ export default function TenantsPage() {
             const data = await response.json();
             setTenants(data);
           }
+        }
+        // Refresh room data to get updated info
+        const roomDataResponse = await fetch(`/api/rooms/${selectedRoom.id}`);
+        if (roomDataResponse.ok) {
+          const updatedRoom = await roomDataResponse.json();
+          setSelectedRoom(updatedRoom);
         }
         // Reset form
         setTenantForms([createEmptyTenantForm()]);
@@ -606,9 +620,21 @@ export default function TenantsPage() {
             </h2>
 
             {selectedRoom && (
-              <p className="mb-4 font-medium">
-                Room Rent: ₹{selectedRoom.rentAmount?.toString() || "0"}
-              </p>
+              <>
+                <p className="mb-2 font-medium">
+                  Room Rent: ₹{selectedRoom.rentAmount?.toString() || "0"}
+                </p>
+                <p className="mb-4 text-sm text-gray-600">
+                  Period:{" "}
+                  {selectedRoom.periodFrom
+                    ? formatDate(new Date(selectedRoom.periodFrom))
+                    : "N/A"}{" "}
+                  to{" "}
+                  {selectedRoom.periodTo
+                    ? formatDate(new Date(selectedRoom.periodTo))
+                    : "N/A"}
+                </p>
+              </>
             )}
 
             {loading ? (
@@ -632,10 +658,6 @@ export default function TenantsPage() {
                         {tenant.state} - {tenant.pincode}
                       </p>
                       <p>Phone: {tenant.phoneNumber}</p>
-                      <p>
-                        Period: {formatDate(new Date(tenant.periodFrom))} to{" "}
-                        {formatDate(new Date(tenant.periodTo))}
-                      </p>
                     </div>
                   </div>
                 ))}

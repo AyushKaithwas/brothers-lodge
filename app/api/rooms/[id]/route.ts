@@ -47,7 +47,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { rentAmount } = body;
+    const { rentAmount, periodFrom, periodTo } = body;
 
     // Validate the required fields
     if (rentAmount !== undefined && (isNaN(rentAmount) || rentAmount < 0)) {
@@ -55,6 +55,33 @@ export async function PATCH(
         { error: "Rent amount must be a valid positive number" },
         { status: 400 }
       );
+    }
+
+    // Process date values if provided
+    let periodFromDate, periodToDate;
+
+    if (periodFrom) {
+      periodFromDate = new Date(periodFrom);
+      if (isNaN(periodFromDate.getTime())) {
+        return NextResponse.json(
+          { error: "Invalid date format for periodFrom" },
+          { status: 400 }
+        );
+      }
+    }
+
+    if (periodTo) {
+      periodToDate = new Date(periodTo);
+      if (isNaN(periodToDate.getTime())) {
+        return NextResponse.json(
+          { error: "Invalid date format for periodTo" },
+          { status: 400 }
+        );
+      }
+    } else if (periodFrom && !periodTo) {
+      // If periodFrom is provided but not periodTo, calculate periodTo as 11 months later
+      periodToDate = new Date(periodFromDate!);
+      periodToDate.setMonth(periodToDate.getMonth() + 11);
     }
 
     // Check if the room exists
@@ -66,27 +93,49 @@ export async function PATCH(
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
-    // Update the room using the exact field name Prisma expects
-    try {
-      await prisma.$executeRaw`
+    // Update the room using raw SQL to ensure proper field mapping
+    const updateFields = [];
+    const updateValues = [];
+
+    if (rentAmount !== undefined) {
+      updateFields.push('"rent_amount" = $1');
+      updateValues.push(rentAmount);
+    }
+
+    if (periodFromDate) {
+      updateFields.push('"period_from" = $' + (updateValues.length + 1));
+      updateValues.push(periodFromDate);
+    }
+
+    if (periodToDate) {
+      updateFields.push('"period_to" = $' + (updateValues.length + 1));
+      updateValues.push(periodToDate);
+    }
+
+    if (updateFields.length > 0) {
+      const updateQuery = `
         UPDATE "rooms" 
-        SET "rent_amount" = ${rentAmount} 
-        WHERE "id" = ${roomId}
+        SET ${updateFields.join(", ")} 
+        WHERE "id" = $${updateValues.length + 1}
       `;
 
-      // Fetch the updated room to return
-      const room = await prisma.room.findUnique({
-        where: { id: roomId },
-      });
-
-      return NextResponse.json(room);
-    } catch (updateError) {
-      console.error("Error in raw SQL update:", updateError);
-      return NextResponse.json(
-        { error: "Failed to update room rent amount" },
-        { status: 500 }
-      );
+      try {
+        await prisma.$executeRawUnsafe(updateQuery, ...updateValues, roomId);
+      } catch (updateError) {
+        console.error("Error in raw SQL update:", updateError);
+        return NextResponse.json(
+          { error: "Failed to update room" },
+          { status: 500 }
+        );
+      }
     }
+
+    // Fetch the updated room to return
+    const room = await prisma.room.findUnique({
+      where: { id: roomId },
+    });
+
+    return NextResponse.json(room);
   } catch (error) {
     console.error("Error updating room:", error);
     return NextResponse.json(

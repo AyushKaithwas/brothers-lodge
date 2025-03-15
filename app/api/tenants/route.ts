@@ -28,23 +28,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Ensure periodFrom is a valid date by adding time component
-    // Convert date string (YYYY-MM-DD) to a full ISO date
-    const periodFromDate = new Date(body.periodFrom);
+    // No need to handle periodFrom/periodTo anymore as they're room properties
 
-    // Check if the date is valid
-    if (isNaN(periodFromDate.getTime())) {
-      return NextResponse.json(
-        { error: "Invalid date format for periodFrom" },
-        { status: 400 }
-      );
-    }
-
-    // Calculate periodTo date (11 months from periodFrom)
-    const periodToDate = new Date(periodFromDate);
-    periodToDate.setMonth(periodToDate.getMonth() + 11);
-
-    // Create tenant with the calculated periodTo
+    // Create tenant
     const tenant = await prisma.tenant.create({
       data: {
         name: body.name,
@@ -59,8 +45,6 @@ export async function POST(request: NextRequest) {
         aadharNumber: body.aadharNumber,
         phoneNumber: body.phoneNumber,
         fatherPhoneNumber: body.fatherPhoneNumber,
-        periodFrom: periodFromDate,
-        periodTo: periodToDate,
         roomId: Number(body.roomId),
       },
       include: {

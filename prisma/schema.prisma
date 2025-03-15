@@ -18,6 +18,8 @@ model Room {
   id         Int      @id @default(autoincrement())
   name       String   @unique // e.g. "G1 + G2 + G3", "F1", "F2", etc.
   rentAmount Int      @default(0) @map("rent_amount") // Rent is now per room
+  periodFrom DateTime @default(now()) @map("period_from") // Added: rental period start
+  periodTo   DateTime @default(now()) @map("period_to") // Added: rental period end
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   tenants    Tenant[]
@@ -40,8 +42,6 @@ model Tenant {
   aadharNumber      String   @map("aadhar_number")
   phoneNumber       String   @map("phone_number")
   fatherPhoneNumber String   @map("father_phone_number")
-  periodFrom        DateTime @map("period_from")
-  periodTo          DateTime @map("period_to")
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
