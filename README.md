@@ -1,36 +1,62 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Brothers Lodge PostgreSQL Docker Setup
+
+This repository contains a Docker setup for a PostgreSQL database instance running on port 5434 externally (mapped to internal port 5433) to avoid conflicts with existing PostgreSQL installations.
 
 ## Getting Started
 
-First, run the development server:
+### Starting the PostgreSQL Server
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# Build and start the PostgreSQL container
+docker-compose up -d
+
+# Check if the container is running
+docker-compose ps
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Connecting with Prisma
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To connect to this PostgreSQL instance using Prisma, use the following connection string in your `.env` file:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+DATABASE_URL="postgresql://postgres:postgres@localhost:5434/brothers_lodge?schema=public"
+```
 
-## Learn More
+Then initialize Prisma in your project:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+# Install Prisma CLI if you haven't already
+npm install prisma --save-dev
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Initialize Prisma
+npx prisma init
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Generate Prisma client after modifying your schema
+npx prisma generate
 
-## Deploy on Vercel
+# Run migrations when ready
+npx prisma migrate dev
+```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Stopping the PostgreSQL Server
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+docker-compose down
+```
+
+To remove all data and start fresh:
+
+```bash
+docker-compose down -v
+```
+
+## Environment Variables
+
+The PostgreSQL server uses the following default credentials:
+
+- **Port**: 5434 (external), 5433 (internal)
+- **User**: postgres
+- **Password**: postgres
+- **Database**: brothers_lodge
+
+You can modify these in the `docker-compose.yml` file if needed, but remember to update your Prisma connection string accordingly.

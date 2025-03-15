@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Room model for storing room information
+model Room {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique // e.g. "G1 + G2 + G3", "F1", "F2", etc.
+  rentAmount Int      @default(0) @map("rent_amount") // Rent is now per room
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  tenants    Tenant[]
+
+  @@map("rooms")
+}
+
+// Tenant model for storing tenant information
+model Tenant {
+  id                Int      @id @default(autoincrement())
+  name              String
+  fatherName        String   @map("father_name")
+  villageName       String   @map("village_name") // Changed from gram
+  tehsil            String // Changed from tehseel
+  policeStation     String   @map("police_station") // Changed from thana
+  district          String // Changed from jila
+  pincode           String
+  state             String
+  email             String?
+  aadharNumber      String   @map("aadhar_number")
+  phoneNumber       String   @map("phone_number")
+  fatherPhoneNumber String   @map("father_phone_number")
+  periodFrom        DateTime @map("period_from")
+  periodTo          DateTime @map("period_to")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  // Relationship with Room
+  roomId Int  @map("room_id")
+  room   Room @relation(fields: [roomId], references: [id])
+
+  @@index([roomId])
+  @@map("tenants")
+}
+
+// We'll keep the User model for authentication purposes
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
