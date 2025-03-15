@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
+import { Fragment } from "react";
 
 // Define types based on your schema
 interface Room {
@@ -61,6 +62,11 @@ export default function TenantTableView() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [simplifiedPrint, setSimplifiedPrint] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [actionSuccess, setActionSuccess] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [processingAction, setProcessingAction] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
     name: true,
     fatherName: true,
@@ -104,66 +110,229 @@ export default function TenantTableView() {
     }, 200);
   };
 
-  // Fetch all rooms with their tenants
-  useEffect(() => {
-    const fetchRoomsWithTenants = async () => {
-      try {
-        setLoading(true);
+  // Function to handle tenant editing
+  const handleEditTenant = (tenant: Tenant) => {
+    setEditingTenant(tenant);
+    setIsModalOpen(true);
+  };
 
-        // First fetch all rooms
-        const roomsResponse = await fetch("/api/rooms");
-        if (!roomsResponse.ok) {
-          throw new Error("Failed to fetch rooms");
-        }
+  // Function to handle tenant update submission
+  const handleTenantUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingTenant) return;
 
-        const roomsData = await roomsResponse.json();
+    setProcessingAction(true);
+    setActionError(null);
+    setActionSuccess(null);
 
-        // For each room, fetch its tenants
-        const roomsWithTenants = await Promise.all(
-          roomsData.map(async (room: Room) => {
-            const tenantsResponse = await fetch(
-              `/api/rooms/${room.id}/tenants`
-            );
-            if (tenantsResponse.ok) {
-              const tenants = await tenantsResponse.json();
-              return {
-                ...room,
-                tenants,
-                personCount: tenants.length,
-              };
-            }
+    try {
+      // Get form data
+      const formData = new FormData(e.currentTarget);
+      const updatedTenant = {
+        id: editingTenant.id,
+        name: formData.get("name") as string,
+        fatherName: formData.get("fatherName") as string,
+        villageName: formData.get("villageName") as string,
+        tehsil: formData.get("tehsil") as string,
+        policeStation: formData.get("policeStation") as string,
+        district: formData.get("district") as string,
+        pincode: formData.get("pincode") as string,
+        state: formData.get("state") as string,
+        email: (formData.get("email") as string) || null,
+        phoneNumber: formData.get("phoneNumber") as string,
+        fatherPhoneNumber: formData.get("fatherPhoneNumber") as string,
+        aadharNumber: unformatAadharNumber(
+          formData.get("aadharNumber") as string
+        ),
+        roomId: editingTenant.roomId,
+      };
+
+      // Validate fields
+      if (
+        !updatedTenant.name ||
+        !updatedTenant.fatherName ||
+        !isValidPhoneNumber(updatedTenant.phoneNumber) ||
+        !isValidPhoneNumber(updatedTenant.fatherPhoneNumber) ||
+        !isValidAadharNumber(updatedTenant.aadharNumber) ||
+        !isValidPincode(updatedTenant.pincode)
+      ) {
+        setActionError("Please fill all required fields with valid data");
+        setProcessingAction(false);
+        return;
+      }
+
+      // Submit update
+      const response = await fetch(`/api/tenants/${editingTenant.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedTenant),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update tenant");
+      }
+
+      setActionSuccess("Tenant updated successfully");
+
+      // Close modal and refresh data
+      setTimeout(() => {
+        setIsModalOpen(false);
+        fetchRoomsWithTenants();
+      }, 1500);
+    } catch (error) {
+      console.error("Error updating tenant:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Failed to update tenant"
+      );
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Function to close modal
+  const closeModal = () => {
+    setIsModalOpen(false);
+    setEditingTenant(null);
+    setActionError(null);
+    setActionSuccess(null);
+  };
+
+  // Function to empty a room (delete all tenants)
+  const handleEmptyRoom = async (roomId: number, roomName: string) => {
+    // Confirm with user
+    const confirmEmpty = window.confirm(
+      `Are you sure you want to empty room ${roomName}? This will delete all tenant records for this room.`
+    );
+
+    if (!confirmEmpty) return;
+
+    setProcessingAction(true);
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/tenants`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to empty room");
+      }
+
+      const data = await response.json();
+      setActionSuccess(
+        `Room ${roomName} emptied successfully. ${data.count} tenant(s) removed.`
+      );
+
+      // Refresh data
+      fetchRoomsWithTenants();
+    } catch (error) {
+      console.error("Error emptying room:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Failed to empty room"
+      );
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Format Aadhar number with spaces after every 4 digits
+  function formatAadharNumber(value: string): string {
+    // Remove all non-digits
+    const cleanedValue = value.replace(/\D/g, "");
+
+    // Add spaces after every 4 digits
+    const parts = [];
+    for (let i = 0; i < cleanedValue.length && i < 12; i += 4) {
+      parts.push(cleanedValue.substring(i, i + 4));
+    }
+
+    return parts.join(" ");
+  }
+
+  // Remove formatting (spaces) from Aadhar number
+  function unformatAadharNumber(value: string): string {
+    return value.replace(/\s/g, "");
+  }
+
+  // Check if the value is a valid phone number (10 digits)
+  function isValidPhoneNumber(value: string): boolean {
+    const cleanedValue = value.replace(/\D/g, "");
+    return cleanedValue.length === 10;
+  }
+
+  // Check if the value is a valid Aadhar number (12 digits)
+  function isValidAadharNumber(value: string): boolean {
+    const cleanedValue = value.replace(/\D/g, "");
+    return cleanedValue.length === 12;
+  }
+
+  // Check if the value is a valid pincode (6 digits)
+  function isValidPincode(value: string): boolean {
+    const cleanedValue = value.replace(/\D/g, "");
+    return cleanedValue.length === 6;
+  }
+
+  // Modify the fetchRoomsWithTenants function to be callable directly
+  const fetchRoomsWithTenants = async () => {
+    try {
+      setLoading(true);
+
+      // First fetch all rooms
+      const roomsResponse = await fetch("/api/rooms");
+      if (!roomsResponse.ok) {
+        throw new Error("Failed to fetch rooms");
+      }
+
+      const roomsData = await roomsResponse.json();
+
+      // For each room, fetch its tenants
+      const roomsWithTenants = await Promise.all(
+        roomsData.map(async (room: Room) => {
+          const tenantsResponse = await fetch(`/api/rooms/${room.id}/tenants`);
+          if (tenantsResponse.ok) {
+            const tenants = await tenantsResponse.json();
             return {
               ...room,
-              tenants: [],
-              personCount: 0,
+              tenants,
+              personCount: tenants.length,
             };
-          })
-        );
+          }
+          return {
+            ...room,
+            tenants: [],
+            personCount: 0,
+          };
+        })
+      );
 
-        // Sort rooms by name
-        roomsWithTenants.sort((a: Room, b: Room) => {
-          // Sort ground floor first, then first floor, then second floor
-          if (a.name.startsWith("G") && !b.name.startsWith("G")) return -1;
-          if (!a.name.startsWith("G") && b.name.startsWith("G")) return 1;
-          if (a.name.startsWith("F") && b.name.startsWith("S")) return -1;
-          if (a.name.startsWith("S") && b.name.startsWith("F")) return 1;
+      // Sort rooms by name
+      roomsWithTenants.sort((a: Room, b: Room) => {
+        // Sort ground floor first, then first floor, then second floor
+        if (a.name.startsWith("G") && !b.name.startsWith("G")) return -1;
+        if (!a.name.startsWith("G") && b.name.startsWith("G")) return 1;
+        if (a.name.startsWith("F") && b.name.startsWith("S")) return -1;
+        if (a.name.startsWith("S") && b.name.startsWith("F")) return 1;
 
-          // Within the same floor, sort by room number
-          const aNum = parseInt(a.name.replace(/\D/g, "")) || 0;
-          const bNum = parseInt(b.name.replace(/\D/g, "")) || 0;
-          return aNum - bNum;
-        });
+        // Within the same floor, sort by room number
+        const aNum = parseInt(a.name.replace(/\D/g, "")) || 0;
+        const bNum = parseInt(b.name.replace(/\D/g, "")) || 0;
+        return aNum - bNum;
+      });
 
-        setRooms(roomsWithTenants as GroupedRoom[]);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Failed to load data. Please refresh the page.");
-      } finally {
-        setLoading(false);
-      }
-    };
+      setRooms(roomsWithTenants as GroupedRoom[]);
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError("Failed to load data. Please refresh the page.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Call the fetchRoomsWithTenants in the useEffect
+  useEffect(() => {
     fetchRoomsWithTenants();
   }, []);
 
@@ -414,6 +583,20 @@ export default function TenantTableView() {
         </div>
       </div>
 
+      {/* Success message */}
+      {actionSuccess && (
+        <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4 no-print">
+          {actionSuccess}
+        </div>
+      )}
+
+      {/* Error message */}
+      {actionError && (
+        <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4 no-print">
+          {actionError}
+        </div>
+      )}
+
       {loading ? (
         <div className="text-center py-8 no-print">
           <p className="text-lg">Loading tenant data...</p>
@@ -465,6 +648,10 @@ export default function TenantTableView() {
                       {getColumnDisplayName(column)}
                     </th>
                   ))}
+                  {/* Actions column (not for print) */}
+                  <th className="border border-gray-300 p-2 text-center no-print">
+                    Actions
+                  </th>
                   {/* Hidden columns that only show when printing */}
                   {Object.keys(ALL_COLUMNS).map((column) => {
                     // Skip if already visible or shouldn't be shown in current print mode
@@ -558,6 +745,28 @@ export default function TenantTableView() {
                             </td>
                           );
                         })}
+
+                        {/* Add Actions column for editing */}
+                        <td className="border border-gray-300 p-2 text-center no-print">
+                          <button
+                            onClick={() => handleEditTenant(tenant)}
+                            className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 mr-2"
+                            title="Edit tenant information"
+                          >
+                            Edit
+                          </button>
+                          {index === 0 && (
+                            <button
+                              onClick={() =>
+                                handleEmptyRoom(room.id, room.name)
+                              }
+                              className="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                              title="Remove all tenants from this room"
+                            >
+                              Empty Room
+                            </button>
+                          )}
+                        </td>
 
                         {/* Hidden columns that only show when printing */}
                         {Object.keys(ALL_COLUMNS).map((column) => {
@@ -666,6 +875,11 @@ export default function TenantTableView() {
                         );
                       })}
 
+                      {/* Empty action cell for empty rooms */}
+                      <td className="border border-gray-300 p-2 text-center no-print">
+                        {/* No edit button for empty room */}
+                      </td>
+
                       {/* Hidden columns for printing (empty rooms) */}
                       {Object.keys(ALL_COLUMNS).map((column) => {
                         // Skip if already visible or shouldn't be shown in current print mode
@@ -723,6 +937,235 @@ export default function TenantTableView() {
             </table>
           </div>
         </>
+      )}
+
+      {/* Edit Tenant Modal */}
+      {isModalOpen && editingTenant && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 no-print">
+          <div className="bg-white rounded-lg shadow-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-semibold">Edit Tenant</h2>
+              <button
+                onClick={closeModal}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            {actionSuccess ? (
+              <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4">
+                {actionSuccess}
+              </div>
+            ) : (
+              <form onSubmit={handleTenantUpdate}>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Tenant Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tenant Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.name}
+                      required
+                    />
+                  </div>
+
+                  {/* Father's Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Father&apos;s Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="fatherName"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.fatherName}
+                      required
+                    />
+                  </div>
+
+                  {/* Village Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Village Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="villageName"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.villageName}
+                      required
+                    />
+                  </div>
+
+                  {/* Tehsil */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tehsil <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="tehsil"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.tehsil}
+                      required
+                    />
+                  </div>
+
+                  {/* Police Station */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Police Station <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="policeStation"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.policeStation}
+                      required
+                    />
+                  </div>
+
+                  {/* District */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      District <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="district"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.district}
+                      required
+                    />
+                  </div>
+
+                  {/* Pincode */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Pincode <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="pincode"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.pincode}
+                      required
+                      maxLength={6}
+                      pattern="\d{6}"
+                      title="Pincode must be 6 digits"
+                    />
+                  </div>
+
+                  {/* State */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      State <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="state"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.state}
+                      required
+                    />
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      name="email"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.email || ""}
+                    />
+                  </div>
+
+                  {/* Aadhar Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Aadhar Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="aadharNumber"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={formatAadharNumber(
+                        editingTenant.aadharNumber
+                      )}
+                      required
+                    />
+                  </div>
+
+                  {/* Phone Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="phoneNumber"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.phoneNumber}
+                      required
+                      maxLength={10}
+                      pattern="\d{10}"
+                      title="Phone number must be 10 digits"
+                    />
+                  </div>
+
+                  {/* Father's Phone Number */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Father&apos;s Phone Number{" "}
+                      <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="tel"
+                      name="fatherPhoneNumber"
+                      className="w-full p-2 border rounded-md"
+                      defaultValue={editingTenant.fatherPhoneNumber}
+                      required
+                      maxLength={10}
+                      pattern="\d{10}"
+                      title="Phone number must be 10 digits"
+                    />
+                  </div>
+                </div>
+
+                {actionError && (
+                  <div className="bg-red-100 text-red-700 p-3 rounded-md my-4">
+                    {actionError}
+                  </div>
+                )}
+
+                <div className="flex justify-end mt-6 gap-2">
+                  <button
+                    type="button"
+                    onClick={closeModal}
+                    className="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={processingAction}
+                    className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none disabled:opacity-50"
+                  >
+                    {processingAction ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

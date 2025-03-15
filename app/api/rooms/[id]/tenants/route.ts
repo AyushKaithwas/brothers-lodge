@@ -1,13 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 // GET /api/rooms/[id]/tenants - Get all tenants for a specific room
 export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  req: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const roomId = parseInt((await params).id);
+    const roomId = parseInt(params.id);
 
     if (isNaN(roomId)) {
       return NextResponse.json({ error: "Invalid room ID" }, { status: 400 });
@@ -15,36 +15,36 @@ export async function GET(
 
     const tenants = await prisma.tenant.findMany({
       where: {
-        roomId,
+        roomId: roomId,
       },
       orderBy: {
-        createdAt: "desc",
+        name: "asc",
       },
     });
 
     return NextResponse.json(tenants);
   } catch (error) {
-    console.error("Error fetching tenants for room:", error);
+    console.error("Error fetching tenants:", error);
     return NextResponse.json(
-      { error: "Failed to fetch tenants for room" },
+      { error: "Failed to fetch tenants" },
       { status: 500 }
     );
   }
 }
 
-// DELETE /api/rooms/[id]/tenants - Delete all tenants for a specific room
+// DELETE /api/rooms/[id]/tenants - Delete all tenants for a specific room (empty the room)
 export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  req: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
-    const roomId = parseInt((await params).id);
+    const roomId = parseInt(params.id);
 
     if (isNaN(roomId)) {
       return NextResponse.json({ error: "Invalid room ID" }, { status: 400 });
     }
 
-    // Check if room exists
+    // First, check if the room exists
     const room = await prisma.room.findUnique({
       where: { id: roomId },
     });
@@ -53,19 +53,21 @@ export async function DELETE(
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
 
-    // Delete all tenants for this room
-    const deleteResult = await prisma.tenant.deleteMany({
-      where: { roomId },
+    // Delete all tenants for the room
+    const result = await prisma.tenant.deleteMany({
+      where: {
+        roomId: roomId,
+      },
     });
 
     return NextResponse.json({
-      message: `Deleted ${deleteResult.count} tenant(s) from room ${roomId}`,
-      count: deleteResult.count,
+      message: `Room emptied successfully`,
+      count: result.count,
     });
   } catch (error) {
-    console.error("Error deleting tenants for room:", error);
+    console.error("Error emptying room:", error);
     return NextResponse.json(
-      { error: "Failed to delete tenants for room" },
+      { error: "Failed to empty room" },
       { status: 500 }
     );
   }
