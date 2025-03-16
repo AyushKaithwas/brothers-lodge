@@ -61,6 +61,9 @@ export default function TenantsPage() {
   const [periodFrom, setPeriodFrom] = useState<string>(
     new Date().toISOString().split("T")[0]
   );
+  const [periodTo, setPeriodTo] = useState<string>(
+    addMonths(new Date(), 11).toISOString().split("T")[0]
+  );
   const [rentAmount, setRentAmount] = useState<string>("");
 
   // State for data and UI
@@ -91,7 +94,7 @@ export default function TenantsPage() {
     fetchRooms();
   }, []);
 
-  // When a room is selected, set the rent amount from the room
+  // When a room is selected, set the rent amount and period dates from the room
   useEffect(() => {
     if (selectedRoom) {
       setRentAmount(selectedRoom.rentAmount?.toString() || "0");
@@ -100,6 +103,13 @@ export default function TenantsPage() {
         const periodFromDate = new Date(selectedRoom.periodFrom);
         if (!isNaN(periodFromDate.getTime())) {
           setPeriodFrom(periodFromDate.toISOString().split("T")[0]);
+        }
+      }
+      // If room has a periodTo, use it
+      if (selectedRoom.periodTo) {
+        const periodToDate = new Date(selectedRoom.periodTo);
+        if (!isNaN(periodToDate.getTime())) {
+          setPeriodTo(periodToDate.toISOString().split("T")[0]);
         }
       }
     } else {
@@ -205,6 +215,17 @@ export default function TenantsPage() {
     }
   };
 
+  // Update periodTo when periodFrom changes (only if the user hasn't manually changed periodTo)
+  const updatePeriodTo = (newPeriodFrom: string) => {
+    setPeriodFrom(newPeriodFrom);
+    // Calculate a new period to (11 months from the start date)
+    const fromDate = new Date(newPeriodFrom);
+    if (!isNaN(fromDate.getTime())) {
+      const suggestedEndDate = addMonths(fromDate, 11);
+      setPeriodTo(suggestedEndDate.toISOString().split("T")[0]);
+    }
+  };
+
   // Submit the tenant form and update room rent
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -228,6 +249,25 @@ export default function TenantsPage() {
     // Validate rent amount
     if (!rentAmount || isNaN(Number(rentAmount)) || Number(rentAmount) < 0) {
       setError("Please enter a valid rent amount");
+      return;
+    }
+
+    // Validate periodFrom and periodTo
+    if (!periodFrom || !periodTo) {
+      setError("Please enter both Period From and Period To dates");
+      return;
+    }
+
+    const fromDate = new Date(periodFrom);
+    const toDate = new Date(periodTo);
+
+    if (isNaN(fromDate.getTime()) || isNaN(toDate.getTime())) {
+      setError("Please enter valid dates");
+      return;
+    }
+
+    if (toDate < fromDate) {
+      setError("Period To must be after Period From");
       return;
     }
 
@@ -282,8 +322,18 @@ export default function TenantsPage() {
     try {
       // Ensure periodFrom is a valid date format (YYYY-MM-DD)
       const periodFromValue = periodFrom.trim();
+      const periodToValue = periodTo.trim();
+
       if (!periodFromValue || !/^\d{4}-\d{2}-\d{2}$/.test(periodFromValue)) {
-        throw new Error("Invalid date format. Please use YYYY-MM-DD format.");
+        throw new Error(
+          "Invalid date format for Period From. Please use YYYY-MM-DD format."
+        );
+      }
+
+      if (!periodToValue || !/^\d{4}-\d{2}-\d{2}$/.test(periodToValue)) {
+        throw new Error(
+          "Invalid date format for Period To. Please use YYYY-MM-DD format."
+        );
       }
 
       // First, update the room's rent amount and period
@@ -295,7 +345,7 @@ export default function TenantsPage() {
         body: JSON.stringify({
           rentAmount: Number(rentAmount),
           periodFrom: periodFromValue,
-          // periodTo is calculated on the server as periodFrom + 11 months
+          periodTo: periodToValue, // Send the actual periodTo value
         }),
       });
 
@@ -461,23 +511,35 @@ export default function TenantsPage() {
                 </div>
               </div>
 
-              <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Period From <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  className="w-full p-2 border rounded-md"
-                  value={periodFrom}
-                  onChange={(e) => setPeriodFrom(e.target.value)}
-                  required
-                />
-                <p className="text-sm text-gray-500 mt-1">
-                  Period To:{" "}
-                  {periodFrom
-                    ? formatDate(addMonths(new Date(periodFrom), 11))
-                    : "N/A"}
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Period From <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full p-2 border rounded-md"
+                    value={periodFrom}
+                    onChange={(e) => updatePeriodTo(e.target.value)}
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Period To <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="w-full p-2 border rounded-md"
+                    value={periodTo}
+                    onChange={(e) => setPeriodTo(e.target.value)}
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-1">
+                    Default is 11 months from Period From
+                  </p>
+                </div>
               </div>
 
               {tenantForms.map((tenantForm, index) => (
