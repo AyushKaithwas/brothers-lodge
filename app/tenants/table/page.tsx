@@ -845,37 +845,49 @@ export default function TenantTableView() {
                         )}
                         {/* Visible columns */}
                         {getVisibleColumnNames().map((column) => {
-                          if (column === "rentAmount") {
-                            return (
-                              <td
-                                key={column}
-                                data-column={column}
-                                className="px-4 py-3 text-right whitespace-nowrap text-gray-900"
-                              >
-                                {room.rentAmount ? `₹${room.rentAmount}` : "-"}
-                              </td>
-                            );
-                          }
-
+                          // Handle room-level properties (show only once per room)
                           if (
+                            column === "rentAmount" ||
                             column === "periodFrom" ||
                             column === "periodTo"
                           ) {
-                            const dateValue =
-                              room[column as "periodFrom" | "periodTo"];
-                            return (
-                              <td
-                                key={column}
-                                data-column={column}
-                                className="px-4 py-3 whitespace-nowrap text-gray-900"
-                              >
-                                {!isDefaultDate(dateValue)
-                                  ? formatDate(new Date(dateValue))
-                                  : "-"}
-                              </td>
-                            );
+                            if (index === 0) {
+                              if (column === "rentAmount") {
+                                return (
+                                  <td
+                                    key={column}
+                                    data-column={column}
+                                    className="px-4 py-3 text-right whitespace-nowrap text-gray-900"
+                                    rowSpan={tenantCount}
+                                  >
+                                    {room.rentAmount
+                                      ? `₹${room.rentAmount}`
+                                      : "-"}
+                                  </td>
+                                );
+                              } else {
+                                const dateValue =
+                                  room[column as "periodFrom" | "periodTo"];
+                                return (
+                                  <td
+                                    key={column}
+                                    data-column={column}
+                                    className="px-4 py-3 whitespace-nowrap text-gray-900"
+                                    rowSpan={tenantCount}
+                                  >
+                                    {!isDefaultDate(dateValue)
+                                      ? formatDate(new Date(dateValue))
+                                      : "-"}
+                                  </td>
+                                );
+                              }
+                            } else {
+                              // Skip these cells for non-first tenants in room
+                              return null;
+                            }
                           }
 
+                          // For tenant-specific columns
                           return (
                             <td
                               key={column}
@@ -930,15 +942,45 @@ export default function TenantTableView() {
                       <td className="px-4 py-3 text-center text-gray-900 whitespace-nowrap">
                         0
                       </td>
-                      {getVisibleColumnNames().map((column) => (
-                        <td
-                          key={column}
-                          data-column={column}
-                          className="px-4 py-3 text-gray-500"
-                        >
-                          -
-                        </td>
-                      ))}
+                      {getVisibleColumnNames().map((column) => {
+                        if (column === "rentAmount") {
+                          return (
+                            <td
+                              key={column}
+                              data-column={column}
+                              className="px-4 py-3 text-right text-gray-500"
+                            >
+                              {room.rentAmount ? `₹${room.rentAmount}` : "-"}
+                            </td>
+                          );
+                        }
+
+                        if (column === "periodFrom" || column === "periodTo") {
+                          const dateValue =
+                            room[column as "periodFrom" | "periodTo"];
+                          return (
+                            <td
+                              key={column}
+                              data-column={column}
+                              className="px-4 py-3 whitespace-nowrap text-gray-500"
+                            >
+                              {!isDefaultDate(dateValue)
+                                ? formatDate(new Date(dateValue))
+                                : "-"}
+                            </td>
+                          );
+                        }
+
+                        return (
+                          <td
+                            key={column}
+                            data-column={column}
+                            className="px-4 py-3 text-gray-500"
+                          >
+                            -
+                          </td>
+                        );
+                      })}
                       <td className="px-4 py-3 text-center whitespace-nowrap no-print">
                         <button
                           onClick={() => handleEditRoom(room)}
