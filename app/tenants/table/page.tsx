@@ -805,9 +805,15 @@ export default function TenantTableView() {
                   {/* Actions column */}
                   <th
                     scope="col"
-                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap no-print"
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap no-print border-l border-gray-200"
                   >
-                    Actions
+                    Tenant Actions
+                  </th>
+                  <th
+                    scope="col"
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap no-print border-l border-gray-200"
+                  >
+                    Room Actions
                   </th>
                 </tr>
               </thead>
@@ -917,38 +923,43 @@ export default function TenantTableView() {
                           );
                         })}
 
-                        {/* Actions */}
+                        {/* Tenant Actions */}
                         <td className="px-4 py-3 text-center whitespace-nowrap no-print border-l border-gray-200">
-                          <div className="flex items-center justify-center gap-2">
-                            <button
-                              onClick={() => handleEditTenant(tenant)}
-                              className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
-                              title="Edit tenant information"
-                            >
-                              Edit
-                            </button>
-                            {index === 0 && (
-                              <>
-                                <button
-                                  onClick={() => handleEditRoom(room)}
-                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors duration-200"
-                                  title="Edit room details"
-                                >
-                                  Edit Room
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleEmptyRoom(room.id, room.name)
-                                  }
-                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
-                                  title="Remove all tenants from this room"
-                                >
-                                  Empty Room
-                                </button>
-                              </>
-                            )}
-                          </div>
+                          <button
+                            onClick={() => handleEditTenant(tenant)}
+                            className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                            title="Edit tenant information"
+                          >
+                            Edit
+                          </button>
                         </td>
+
+                        {/* Room Actions - only show in first row */}
+                        {index === 0 ? (
+                          <td
+                            className="px-4 py-3 text-center whitespace-nowrap no-print border-l border-gray-200"
+                            rowSpan={tenantCount}
+                          >
+                            <div className="flex flex-col items-center gap-2">
+                              <button
+                                onClick={() => handleEditRoom(room)}
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors duration-200 w-full justify-center"
+                                title="Edit room details"
+                              >
+                                Edit Room
+                              </button>
+                              <button
+                                onClick={() =>
+                                  handleEmptyRoom(room.id, room.name)
+                                }
+                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200 w-full justify-center"
+                                title="Remove all tenants from this room"
+                              >
+                                Empty Room
+                              </button>
+                            </div>
+                          </td>
+                        ) : null}
                       </tr>
                     ))
                   ) : (
@@ -1011,6 +1022,9 @@ export default function TenantTableView() {
                           </td>
                         );
                       })}
+                      <td className="px-4 py-3 text-center whitespace-nowrap no-print">
+                        {/* No tenant actions for empty rooms */}
+                      </td>
                       <td className="px-4 py-3 text-center whitespace-nowrap no-print">
                         <button
                           onClick={() => handleEditRoom(room)}
