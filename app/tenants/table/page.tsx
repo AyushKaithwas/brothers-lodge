@@ -772,28 +772,32 @@ export default function TenantTableView() {
 
           {/* Table */}
           <div className="overflow-x-auto bg-white rounded-lg shadow-sm border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200 border-collapse">
               <thead>
                 <tr className="bg-gray-50">
                   <th
                     scope="col"
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap border-r border-gray-200"
                   >
                     Room No.
                   </th>
                   <th
                     scope="col"
-                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                    className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap border-r border-gray-200"
                   >
                     No. of Person
                   </th>
                   {/* Visible columns */}
-                  {getVisibleColumnNames().map((column) => (
+                  {getVisibleColumnNames().map((column, index) => (
                     <th
                       key={column}
                       data-column={column}
                       scope="col"
-                      className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap"
+                      className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap ${
+                        index < getVisibleColumnNames().length - 1
+                          ? "border-r border-gray-200"
+                          : ""
+                      }`}
                     >
                       {getColumnDisplayName(column)}
                     </th>
@@ -830,13 +834,13 @@ export default function TenantTableView() {
                         {index === 0 && (
                           <>
                             <td
-                              className="px-4 py-3 font-medium text-red-700 whitespace-nowrap room-cell"
+                              className="px-4 py-3 font-medium text-red-700 whitespace-nowrap room-cell border-r border-gray-200"
                               rowSpan={tenantCount}
                             >
                               {room.name}
                             </td>
                             <td
-                              className="px-4 py-3 text-center text-gray-900 whitespace-nowrap"
+                              className="px-4 py-3 text-center text-gray-900 whitespace-nowrap border-r border-gray-200"
                               rowSpan={tenantCount}
                             >
                               {tenantCount}
@@ -844,7 +848,7 @@ export default function TenantTableView() {
                           </>
                         )}
                         {/* Visible columns */}
-                        {getVisibleColumnNames().map((column) => {
+                        {getVisibleColumnNames().map((column, colIndex) => {
                           // Handle room-level properties (show only once per room)
                           if (
                             column === "rentAmount" ||
@@ -857,7 +861,12 @@ export default function TenantTableView() {
                                   <td
                                     key={column}
                                     data-column={column}
-                                    className="px-4 py-3 text-right whitespace-nowrap text-gray-900"
+                                    className={`px-4 py-3 text-right whitespace-nowrap text-gray-900 ${
+                                      colIndex <
+                                      getVisibleColumnNames().length - 1
+                                        ? "border-r border-gray-200"
+                                        : ""
+                                    }`}
                                     rowSpan={tenantCount}
                                   >
                                     {room.rentAmount
@@ -872,7 +881,12 @@ export default function TenantTableView() {
                                   <td
                                     key={column}
                                     data-column={column}
-                                    className="px-4 py-3 whitespace-nowrap text-gray-900"
+                                    className={`px-4 py-3 whitespace-nowrap text-gray-900 ${
+                                      colIndex <
+                                      getVisibleColumnNames().length - 1
+                                        ? "border-r border-gray-200"
+                                        : ""
+                                    }`}
                                     rowSpan={tenantCount}
                                   >
                                     {!isDefaultDate(dateValue)
@@ -892,7 +906,11 @@ export default function TenantTableView() {
                             <td
                               key={column}
                               data-column={column}
-                              className="px-4 py-3 text-gray-900"
+                              className={`px-4 py-3 text-gray-900 ${
+                                colIndex < getVisibleColumnNames().length - 1
+                                  ? "border-r border-gray-200"
+                                  : ""
+                              }`}
                             >
                               {getTenantValue(tenant, column)}
                             </td>
@@ -900,7 +918,7 @@ export default function TenantTableView() {
                         })}
 
                         {/* Actions */}
-                        <td className="px-4 py-3 text-center whitespace-nowrap no-print">
+                        <td className="px-4 py-3 text-center whitespace-nowrap no-print border-l border-gray-200">
                           <div className="flex items-center justify-center gap-2">
                             <button
                               onClick={() => handleEditTenant(tenant)}
@@ -936,19 +954,23 @@ export default function TenantTableView() {
                   ) : (
                     // Empty rooms
                     <tr className={getBgColor(room.name, true)}>
-                      <td className="px-4 py-3 font-medium text-red-700 whitespace-nowrap room-cell">
+                      <td className="px-4 py-3 font-medium text-red-700 whitespace-nowrap room-cell border-r border-gray-200">
                         {room.name}
                       </td>
-                      <td className="px-4 py-3 text-center text-gray-900 whitespace-nowrap">
+                      <td className="px-4 py-3 text-center text-gray-900 whitespace-nowrap border-r border-gray-200">
                         0
                       </td>
-                      {getVisibleColumnNames().map((column) => {
+                      {getVisibleColumnNames().map((column, colIndex) => {
                         if (column === "rentAmount") {
                           return (
                             <td
                               key={column}
                               data-column={column}
-                              className="px-4 py-3 text-right text-gray-500"
+                              className={`px-4 py-3 text-right text-gray-500 ${
+                                colIndex < getVisibleColumnNames().length - 1
+                                  ? "border-r border-gray-200"
+                                  : ""
+                              }`}
                             >
                               {room.rentAmount ? `₹${room.rentAmount}` : "-"}
                             </td>
@@ -962,7 +984,11 @@ export default function TenantTableView() {
                             <td
                               key={column}
                               data-column={column}
-                              className="px-4 py-3 whitespace-nowrap text-gray-500"
+                              className={`px-4 py-3 whitespace-nowrap text-gray-500 ${
+                                colIndex < getVisibleColumnNames().length - 1
+                                  ? "border-r border-gray-200"
+                                  : ""
+                              }`}
                             >
                               {!isDefaultDate(dateValue)
                                 ? formatDate(new Date(dateValue))
@@ -975,7 +1001,11 @@ export default function TenantTableView() {
                           <td
                             key={column}
                             data-column={column}
-                            className="px-4 py-3 text-gray-500"
+                            className={`px-4 py-3 text-gray-500 ${
+                              colIndex < getVisibleColumnNames().length - 1
+                                ? "border-r border-gray-200"
+                                : ""
+                            }`}
                           >
                             -
                           </td>
