@@ -4,10 +4,10 @@ import { prisma } from "@/lib/prisma";
 // GET /api/rooms/[id]/tenants - Get all tenants for a specific room
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const roomId = parseInt(params.id);
+    const roomId = parseInt((await params).id);
 
     if (isNaN(roomId)) {
       return NextResponse.json({ error: "Invalid room ID" }, { status: 400 });
