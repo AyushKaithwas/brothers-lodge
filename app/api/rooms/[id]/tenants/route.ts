@@ -35,10 +35,10 @@ export async function GET(
 // DELETE /api/rooms/[id]/tenants - Delete all tenants for a specific room (empty the room)
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const roomId = parseInt(params.id);
+    const roomId = parseInt((await params).id);
 
     if (isNaN(roomId)) {
       return NextResponse.json({ error: "Invalid room ID" }, { status: 400 });
