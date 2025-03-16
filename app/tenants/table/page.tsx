@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { Fragment } from "react";
 import { ChevronDown, Check, Filter } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -82,6 +81,8 @@ export default function TenantTableView() {
   const [simplifiedPrint, setSimplifiedPrint] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null);
+  const [isRoomModalOpen, setIsRoomModalOpen] = useState(false);
+  const [editingRoom, setEditingRoom] = useState<GroupedRoom | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [processingAction, setProcessingAction] = useState(false);
@@ -430,6 +431,83 @@ export default function TenantTableView() {
       return value !== null && value !== undefined ? value : "N/A";
     }
     return "N/A";
+  };
+
+  // Function to handle room editing
+  const handleEditRoom = (room: GroupedRoom) => {
+    setEditingRoom(room);
+    setIsRoomModalOpen(true);
+  };
+
+  // Function to handle room update submission
+  const handleRoomUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!editingRoom) return;
+
+    setProcessingAction(true);
+    setActionError(null);
+    setActionSuccess(null);
+
+    try {
+      // Get form data
+      const formData = new FormData(e.currentTarget);
+      const updatedRoom = {
+        id: editingRoom.id,
+        name: formData.get("name") as string,
+        rentAmount: parseInt(formData.get("rentAmount") as string),
+        periodFrom: formData.get("periodFrom") as string,
+        periodTo: formData.get("periodTo") as string,
+      };
+
+      // Validate fields
+      if (
+        !updatedRoom.name ||
+        isNaN(updatedRoom.rentAmount) ||
+        !updatedRoom.periodFrom ||
+        !updatedRoom.periodTo
+      ) {
+        setActionError("Please fill all required fields with valid data");
+        setProcessingAction(false);
+        return;
+      }
+
+      // Submit update
+      const response = await fetch(`/api/rooms/${editingRoom.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(updatedRoom),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update room");
+      }
+
+      setActionSuccess("Room details updated successfully");
+
+      // Close modal and refresh data
+      setTimeout(() => {
+        setIsRoomModalOpen(false);
+        fetchRoomsWithTenants();
+      }, 1500);
+    } catch (error) {
+      console.error("Error updating room:", error);
+      setActionError(
+        error instanceof Error ? error.message : "Failed to update room"
+      );
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
+  // Function to close room modal
+  const closeRoomModal = () => {
+    setIsRoomModalOpen(false);
+    setEditingRoom(null);
+    setActionError(null);
+    setActionSuccess(null);
   };
 
   return (
@@ -820,15 +898,24 @@ export default function TenantTableView() {
                               Edit
                             </button>
                             {index === 0 && (
-                              <button
-                                onClick={() =>
-                                  handleEmptyRoom(room.id, room.name)
-                                }
-                                className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
-                                title="Remove all tenants from this room"
-                              >
-                                Empty Room
-                              </button>
+                              <>
+                                <button
+                                  onClick={() => handleEditRoom(room)}
+                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors duration-200"
+                                  title="Edit room details"
+                                >
+                                  Edit Room
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleEmptyRoom(room.id, room.name)
+                                  }
+                                  className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-colors duration-200"
+                                  title="Remove all tenants from this room"
+                                >
+                                  Empty Room
+                                </button>
+                              </>
                             )}
                           </div>
                         </td>
@@ -852,7 +939,15 @@ export default function TenantTableView() {
                           -
                         </td>
                       ))}
-                      <td className="px-4 py-3 text-center whitespace-nowrap no-print"></td>
+                      <td className="px-4 py-3 text-center whitespace-nowrap no-print">
+                        <button
+                          onClick={() => handleEditRoom(room)}
+                          className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-white bg-amber-600 rounded-md hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors duration-200"
+                          title="Edit room details"
+                        >
+                          Edit Room
+                        </button>
+                      </td>
                     </tr>
                   );
                 })}
@@ -898,6 +993,15 @@ export default function TenantTableView() {
               </div>
             ) : (
               <form onSubmit={handleTenantUpdate}>
+                {/* Room info notice */}
+                <div className="bg-blue-50 p-3 rounded-lg mb-5 border border-blue-200">
+                  <p className="text-blue-800 text-sm">
+                    <strong>Note:</strong> Room details (Room No, Rent Amount,
+                    Period) are common for all tenants in the room. To edit
+                    these properties, use the &quot;Edit Room&quot; button.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Tenant Name */}
                   <div>
@@ -1099,6 +1203,152 @@ export default function TenantTableView() {
                     className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200 disabled:opacity-50"
                   >
                     {processingAction ? "Saving..." : "Save Changes"}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Room Modal */}
+      {isRoomModalOpen && editingRoom && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 no-print">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-lg w-full max-h-[90vh] overflow-y-auto mx-4">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Edit Room Details
+              </h2>
+              <button
+                onClick={closeRoomModal}
+                className="text-gray-500 hover:text-gray-700 focus:outline-none"
+              >
+                <span className="sr-only">Close</span>
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {actionSuccess ? (
+              <div className="bg-emerald-50 text-emerald-700 p-4 rounded-lg mb-4 border border-emerald-200 flex items-center gap-2">
+                <Check className="w-5 h-5" />
+                <span>{actionSuccess}</span>
+              </div>
+            ) : (
+              <form onSubmit={handleRoomUpdate}>
+                <div className="space-y-5">
+                  {/* Room Name */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Room Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="name"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={editingRoom.name}
+                      required
+                    />
+                  </div>
+
+                  {/* Rent Amount */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Rent Amount (₹) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      name="rentAmount"
+                      min="0"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={editingRoom.rentAmount}
+                      required
+                    />
+                  </div>
+
+                  {/* Period From */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Period From <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="periodFrom"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={
+                        !isDefaultDate(editingRoom.periodFrom)
+                          ? new Date(editingRoom.periodFrom)
+                              .toISOString()
+                              .split("T")[0]
+                          : ``
+                      }
+                      required
+                    />
+                  </div>
+
+                  {/* Period To */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Period To <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      name="periodTo"
+                      className="w-full p-2.5 text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      defaultValue={
+                        !isDefaultDate(editingRoom.periodTo)
+                          ? new Date(editingRoom.periodTo)
+                              .toISOString()
+                              .split("T")[0]
+                          : ``
+                      }
+                      required
+                    />
+                  </div>
+
+                  {/* Note for occupants */}
+                  {editingRoom.personCount > 0 && (
+                    <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                      <p className="text-amber-800 text-sm">
+                        This room has {editingRoom.personCount} occupant(s).
+                        Changes to these details will affect all tenants in this
+                        room.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {actionError && (
+                  <div className="bg-red-50 text-red-700 p-4 rounded-lg my-6 border border-red-200">
+                    {actionError}
+                  </div>
+                )}
+
+                <div className="flex justify-end mt-8 gap-3">
+                  <button
+                    type="button"
+                    onClick={closeRoomModal}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={processingAction}
+                    className="px-4 py-2 text-sm font-medium text-white bg-amber-600 rounded-lg hover:bg-amber-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 transition-colors duration-200 disabled:opacity-50"
+                  >
+                    {processingAction ? "Saving..." : "Save Room Details"}
                   </button>
                 </div>
               </form>
