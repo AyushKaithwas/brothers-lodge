@@ -41,9 +41,9 @@ interface GroupedRoom extends Room {
 
 // List of all available columns for reference
 const ALL_COLUMNS = {
-  name: "Name",
+  name: "Tenant Name",
   fatherName: "Father's Name",
-  phoneNumber: "Mobile No.",
+  phoneNumber: "Tenant Mobile",
   fatherPhoneNumber: "Father's Mobile",
   villageName: "Village",
   tehsil: "Tehsil",
@@ -88,8 +88,8 @@ export default function TenantTableView() {
   const [processingAction, setProcessingAction] = useState(false);
   const [visibleColumns, setVisibleColumns] = useState({
     name: true,
-    fatherName: true,
     phoneNumber: true,
+    fatherName: true,
     fatherPhoneNumber: true,
     villageName: true,
     tehsil: true,
